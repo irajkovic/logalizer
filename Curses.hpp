@@ -7,6 +7,7 @@ class Curses {
     static const size_t _menuHeight = 3u;
     bool _active = false;
     std::vector<std::string> _tabs;
+    std::mutex _mtx;
 
 public:
 
@@ -42,10 +43,11 @@ public:
 
     void drawMenu() {
         size_t column = 2u;
+        std::lock_guard<std::mutex> g(_mtx);
         for (int i=1; i<_tabs.size(); i++) {
             attron(COLOR_PAIR(i));
-            mvprintw(1, column, "[%d] %s", i, _tabs[i].c_str());
             column += _tabs[i].size() + 10u;
+            mvprintw(1, column, "[%d] %s", i, _tabs[i].c_str());
         }
     }
     
@@ -58,9 +60,9 @@ public:
     }
 
     void printLine(int row, std::string line, int index) {
-
         if (_active) {
             attron(COLOR_PAIR(index));
+            std::lock_guard<std::mutex> g(_mtx);
             mvprintw(row + _menuHeight, 0, "[%i] %s", index, line.c_str());
         }
     }

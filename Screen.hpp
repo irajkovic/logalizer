@@ -5,7 +5,7 @@
 
 class Screen {
 
-    static const size_t _height = 10;
+    static const size_t _height = 50;
 public:
 
     Screen(Curses& curses) : _curses(curses) {}
@@ -16,7 +16,6 @@ public:
         _curses.drawMenu();
 
         std::lock_guard<std::mutex> g(_mtx);
-
         for (int i=0; i<_height; i++) {
             int lineInd = _row + i;
             if (lineInd > _lines.size()) {
@@ -25,7 +24,6 @@ public:
             auto line = _lines[lineInd];
             _curses.printLine(i, line.text, line.sourceId);
         }
-
         _curses.refresh();
     }
 
