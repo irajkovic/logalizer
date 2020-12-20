@@ -9,6 +9,7 @@
 #include <functional>
 #include <future>
 #include <csignal>
+#include <chrono>
 
 #define LOG(line) std::cerr << __FUNCTION__ << ": " <<  line << std::endl;
 //#define LOG(line)
@@ -50,8 +51,6 @@ public:
         std::string line;
         std::getline(_file, line);
         if (!line.empty()) {
-            // LOG("Read: \"" << line << "\", size: " << line.size());
-            std::lock_guard<std::mutex> g(_mtx);
             _onReadLine(line);
         }
 
@@ -65,7 +64,6 @@ private:
     OnStop                   _onStop;
     OnReadLine               _onReadLine;
     std::future<void>        _worker;
-    std::mutex               _mtx;
     std::atomic<bool>        _isOn;
 };
 
@@ -78,9 +76,11 @@ class Curses {
 public:
 
     bool activate() {
-        initscr();
-        noecho();
-        refresh();
+        ::initscr();
+        ::noecho();
+        ::cbreak();
+        ::keypad(stdscr, true);
+        ::refresh();
         _active = has_colors();
 
         if (_active) {
@@ -113,19 +113,20 @@ public:
             column += _tabs[i].size() + 10u;
         }
     }
-
-    void redraw() {
-        drawMenu();
-        refresh();
+    
+    void clear() {
+        ::clear();
     }
 
-    void print_line(int row, std::string line, int index) {
+    void refresh() {
+        ::refresh();
+    }
+
+    void printLine(int row, std::string line, int index) {
 
         if (_active) {
             attron(COLOR_PAIR(index));
             mvprintw(row + _menuHeight, 0, "[%i] %s", index, line.c_str());
-            redraw();
-            //LOG(row << ": " << line);
         }
     }
 
@@ -139,36 +140,82 @@ bool parse_options(int argc, char* argv[]) {
     return false;
 }
 
+struct LogLine {
+    std::chrono::time_point<std::chrono::steady_clock> time;
+    std::string text;
+    size_t sourceId;
+};
+
 class Screen {
 
+    static const size_t _height = 10;
 public:
 
     Screen(Curses& curses) : _curses(curses) {}
 
-    void addLine(const std::string& line, int index) {
+    void redraw() {
+
+        _curses.clear();
+        _curses.drawMenu();
+
         std::lock_guard<std::mutex> g(_mtx);
-        ++_row;
-        _lines.emplace_back(line);
-        _curses.print_line(_row, line, index);
+
+        for (int i=0; i<_height; i++) {
+            int lineInd = _row + i;
+            if (lineInd > _lines.size()) {
+                break;
+            }
+            auto line = _lines[lineInd];
+            _curses.printLine(i, line.text, line.sourceId);
+        }
+
+        _curses.refresh();
     }
 
-    void redraw() {
-        _curses.drawMenu();
+    void toggle(int index) {
+
+    }
+
+    void scrollUp() {
+        LOG("row " << _row);
+        std::lock_guard<std::mutex> g(_mtx);
+        if (_row > 0) {
+            --_row;
+        }
+    }
+
+    void scrollDown() {
+        std::lock_guard<std::mutex> g(_mtx);
+        LOG("row " << _row << ", size=" << _lines.size());
+        if (_row < _lines.size() - 1) {
+            ++_row;
+        }
     }
 
     std::function<void(std::string)> getAppender(std::string name, int index) {
+
         LOG("Appender " << name << " (" << index << ")");
         _curses.addTab(name, index);
+
         return [this, index] (std::string line) {
             addLine(line, index);
         };
     }
 
+    void addLine(const std::string& text, int index) {
+        {
+            std::lock_guard<std::mutex> g(_mtx);
+            _lines.emplace_back(LogLine{std::chrono::steady_clock::now(), text, index});
+            LOG("Added line, size=" << _lines.size());
+        }
+    }
+
+
 private:
     Curses& _curses;
     std::mutex  _mtx;
     size_t      _row = 0;
-    std::vector<std::string> _lines;
+    std::vector<LogLine> _lines;
 };
 
 namespace {
@@ -206,9 +253,33 @@ int main(int argc, char* argv[]) {
         readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, screen.getAppender(argv[i], i)));
     }
 
+    while (true) {
+        t screen.redraw();
+        int ch = getch();
+        switch (ch) {
+            case KEY_UP:
+                screen.scrollUp();
+                break;
+            case KEY_DOWN:
+                screen.scrollDown();
+                break;
+            case 'q':
+            case 'Q':
+                stop();
+                break;
+        }
+
+        std::unique_lock<std::mutex> g(cvMtx);
+        if (!isRunning) {
+            break;
+        }
+        LOG("Read user input: " << std::hex << ch << " UP " << KEY_UP << " DOWN " << KEY_DOWN);
+    }
+
+/*
     std::unique_lock<std::mutex> g(cvMtx);
     cv.wait(g, [&isRunning] () { return !isRunning;});
-
+*/
     for (auto& reader : readers) {
         reader->stop();
     }
