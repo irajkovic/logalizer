@@ -26,9 +26,9 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
-    Curses curses;
+    Screen screen;
+    Curses curses(screen);
     curses.activate();
-    Screen screen(curses);
     std::mutex cvMtx;
     std::condition_variable cv;
     bool isRunning(true);
@@ -47,13 +47,25 @@ int main(int argc, char* argv[]) {
 
     for (int i=1; i<argc; i++) {
         LOG("Reading file " << argv[i]);
-        readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, screen.getAppender(argv[i], i)));
+        readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, screen.getAppender(argv[i], i-1)));
     }
 
     while (true) {
-        screen.redraw();
+        curses.refresh();
         int ch = getch();
         switch (ch) {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                screen.toggleTab(ch - '0');
+                break;
             case KEY_UP:
                 screen.scrollUp();
                 break;

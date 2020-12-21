@@ -3,32 +3,47 @@
 #include "Log.hpp"
 #include "LogLine.hpp"
 
+struct Tab {
+    std::string name;
+    bool enabled;
+};
+
 class Screen {
 
-    static const size_t _height = 50;
 public:
 
-    Screen(Curses& curses) : _curses(curses) {}
-
-    void redraw() {
-
-        _curses.clear();
-        _curses.drawMenu();
-
-        std::lock_guard<std::mutex> g(_mtx);
-        for (int i=0; i<_height; i++) {
-            int lineInd = _row + i;
-            if (lineInd > _lines.size()) {
-                break;
-            }
-            auto line = _lines[lineInd];
-            _curses.printLine(i, line.text, line.sourceId);
-        }
-        _curses.refresh();
+    void prepareLines() {
+        _nextLine = _row;    
     }
 
-    void toggle(int index) {
+    LogLine* nextLine() {
 
+        // Skip lines from disabled tabs
+        while ((_nextLine < _lines.size())
+                && !_tabs[_lines[_nextLine].id].enabled) {
+            _nextLine++;
+        }
+
+        if (_nextLine < _lines.size()) {
+            return &_lines[_nextLine++];
+        }
+
+        return nullptr;
+    }
+
+    void toggleTab(int id) {
+        _tabs[id].enabled = !_tabs[id].enabled;
+    }
+
+    Tab* getTab(int id) {
+        if (id < _tabs.size()) {
+            return &_tabs[id];
+        }
+        return nullptr;
+    }
+
+    size_t getTabCnt() {
+        return _tabs.size();
     }
 
     void scrollUp() {
@@ -47,29 +62,30 @@ public:
         }
     }
 
-    std::function<void(std::string)> getAppender(std::string name, int index) {
+    std::function<void(std::string)> getAppender(std::string name, int id) {
 
-        LOG("Appender " << name << " (" << index << ")");
-        _curses.addTab(name, index);
+        LOG("Appender " << name << " (" << id << ")");
+        _tabs.emplace_back(Tab{name, true});
 
-        return [this, index] (std::string line) {
-            addLine(line, index);
+        return [this, id] (std::string line) {
+            addLine(line, id);
         };
     }
 
-    void addLine(const std::string& text, int index) {
+    void addLine(const std::string& text, int id) {
         {
             std::lock_guard<std::mutex> g(_mtx);
-            _lines.emplace_back(LogLine{std::chrono::steady_clock::now(), text, index});
+            _lines.emplace_back(LogLine{std::chrono::steady_clock::now(), text, id});
             LOG("Added line, size=" << _lines.size());
         }
     }
 
 
 private:
-    Curses& _curses;
     std::mutex  _mtx;
     size_t      _row = 0;
+    size_t      _nextLine = 0;
     std::vector<LogLine> _lines;
+    std::vector<Tab> _tabs;
 };
 

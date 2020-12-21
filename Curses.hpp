@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Screen.hpp"
 #include "Log.hpp"
 
 class Curses {
@@ -8,8 +9,11 @@ class Curses {
     bool _active = false;
     std::vector<std::string> _tabs;
     std::mutex _mtx;
+    Screen& _screen;
 
 public:
+
+    Curses(Screen& screen) : _screen(screen) {}
 
     bool activate() {
         ::initscr();
@@ -26,6 +30,18 @@ public:
             init_pair(3, COLOR_YELLOW, COLOR_BLACK);
             init_pair(4, COLOR_MAGENTA, COLOR_BLACK);
             init_pair(5, COLOR_CYAN, COLOR_BLACK);
+
+
+            init_pair(6, COLOR_GREEN, COLOR_BLACK);
+            init_pair(7, COLOR_YELLOW, COLOR_BLACK);
+            init_pair(8, COLOR_MAGENTA, COLOR_BLACK);
+
+            init_pair(9,  COLOR_BLACK, COLOR_WHITE);
+            init_pair(10, COLOR_BLACK, COLOR_GREEN);
+            init_pair(11, COLOR_BLACK, COLOR_YELLOW);
+            init_pair(12, COLOR_BLACK, COLOR_MAGENTA);
+            init_pair(13, COLOR_BLACK, COLOR_CYAN);
+
         }
 
         LOG("Curses: " << _active);
@@ -44,24 +60,44 @@ public:
     void drawMenu() {
         size_t column = 2u;
         std::lock_guard<std::mutex> g(_mtx);
-        for (int i=1; i<_tabs.size(); i++) {
-            attron(COLOR_PAIR(i));
-            column += _tabs[i].size() + 10u;
-            mvprintw(1, column, "[%d] %s", i, _tabs[i].c_str());
+        for (int i=0; i<_screen.getTabCnt(); i++) {
+            auto tab = _screen.getTab(i);
+
+            if (tab == nullptr) {
+                return;
+            }
+
+            tab->enabled ? attron(COLOR_PAIR(i+1)) : attron(COLOR_PAIR(i+9));
+            column += tab->name.size() + 10u;
+            mvprintw(1, column, "[%d] %s", i, tab->name.c_str());
         }
     }
     
-    void clear() {
-        ::clear();
-    }
-
     void refresh() {
+
+        int row, col;
+        getmaxyx(stdscr, row, col);
+       
+        ::clear();
+        drawMenu();
+
+        _screen.prepareLines();
+        for (int i=0; i<row; i++) {
+            LogLine* line = _screen.nextLine();
+
+            if (line == nullptr) {
+                break;
+            }
+
+            printLine(i, line->text, line->id);
+        }
+
         ::refresh();
     }
 
     void printLine(int row, std::string line, int index) {
         if (_active) {
-            attron(COLOR_PAIR(index));
+            attron(COLOR_PAIR(index+1));
             std::lock_guard<std::mutex> g(_mtx);
             mvprintw(row + _menuHeight, 0, "[%i] %s", index, line.c_str());
         }
