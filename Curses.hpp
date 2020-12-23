@@ -49,6 +49,38 @@ public:
         return _active;
     }
 
+    void run() {
+        activate();
+        while (true) {
+            refresh();
+            int ch = getch();
+            switch (ch) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    _screen.toggleTab(ch - '0');
+                    break;
+                case KEY_UP:
+                    _screen.scrollUp();
+                    break;
+                case KEY_DOWN:
+                    _screen.scrollDown();
+                    break;
+                case 'q':
+                case 'Q':
+                    return;
+                    break;
+            }
+        }
+    }
+
     void addTab(std::string name, int index) {
         LOG(_tabs.size() << " " << index);
         if (_tabs.size() <= index) {

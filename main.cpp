@@ -28,7 +28,6 @@ int main(int argc, char* argv[]) {
 
     Screen screen;
     Curses curses(screen);
-    curses.activate();
     std::mutex cvMtx;
     std::condition_variable cv;
     bool isRunning(true);
@@ -50,40 +49,7 @@ int main(int argc, char* argv[]) {
         readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, screen.getAppender(argv[i], i-1)));
     }
 
-    while (true) {
-        curses.refresh();
-        int ch = getch();
-        switch (ch) {
-            case '0':
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-                screen.toggleTab(ch - '0');
-                break;
-            case KEY_UP:
-                screen.scrollUp();
-                break;
-            case KEY_DOWN:
-                screen.scrollDown();
-                break;
-            case 'q':
-            case 'Q':
-                stop();
-                break;
-        }
-
-        std::unique_lock<std::mutex> g(cvMtx);
-        if (!isRunning) {
-            break;
-        }
-        LOG("Read user input: " << std::hex << ch << " UP " << KEY_UP << " DOWN " << KEY_DOWN);
-    }
+    curses.run();
 
 /*
     std::unique_lock<std::mutex> g(cvMtx);
