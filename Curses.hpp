@@ -49,8 +49,12 @@ public:
         return _active;
     }
 
-    void run() {
-        activate();
+    bool run() {
+
+        if (!activate()) {
+            return false;
+        }
+
         while (true) {
             refresh();
             int ch = getch();
@@ -75,10 +79,12 @@ public:
                     break;
                 case 'q':
                 case 'Q':
-                    return;
+                    return true;
                     break;
             }
         }
+
+        return true;
     }
 
     void addTab(std::string name, int index) {
