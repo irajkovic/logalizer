@@ -62,6 +62,10 @@ public:
         }
     }
 
+    void registerOnNewDataAvailableListener(std::function<void()> listener) {
+        _onNewDataAvailable = listener;
+    }
+
     std::function<void(std::string)> getAppender(std::string name, int id) {
 
         LOG("Appender " << name << " (" << id << ")");
@@ -76,6 +80,11 @@ public:
         {
             std::lock_guard<std::mutex> g(_mtx);
             _lines.emplace_back(LogLine{std::chrono::steady_clock::now(), text, id});
+            
+            if (_onNewDataAvailable) {
+                _onNewDataAvailable();
+            }
+
             LOG("Added line, size=" << _lines.size());
         }
     }
@@ -87,5 +96,6 @@ private:
     size_t      _nextLine = 0;
     std::vector<LogLine> _lines;
     std::vector<Tab> _tabs;
+    std::function<void()> _onNewDataAvailable;
 };
 

@@ -15,24 +15,37 @@
 #include "Screen.hpp"
 #include "LogReader.hpp"
 
-int main(int argc, char* argv[]) {
-
+struct Configuration {
     Screen screen;
-    Curses curses(screen);
-    const auto noop = [](){};
-
     std::vector<std::unique_ptr<LogReader>> readers;
+};
+
+bool initialize(int argc, char* argv[], Configuration* config) {
+
+    const auto noop = [](){};
 
     for (int i=1; i<argc; i++) {
         LOG("Reading file " << argv[i]);
-        readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, screen.getAppender(argv[i], i-1)));
+        config->readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, config->screen.getAppender(argv[i], i-1)));
+    }
+
+    return true;
+}
+
+int main(int argc, char* argv[]) {
+
+    Configuration configuration;
+    Curses curses(configuration.screen);
+
+    if (!initialize(argc, argv, &configuration)) {
+        return EXIT_FAILURE;
     }
 
     if (!curses.run()) {
         return EXIT_FAILURE;
     }
 
-    for (auto& reader : readers) {
+    for (auto& reader : configuration.readers) {
         reader->stop();
     }
 

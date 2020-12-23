@@ -13,7 +13,11 @@ class Curses {
 
 public:
 
-    Curses(Screen& screen) : _screen(screen) {}
+    Curses(Screen& screen) : _screen(screen) {
+        screen.registerOnNewDataAvailableListener([this](){
+            refresh();
+        });
+    }
 
     bool activate() {
         ::initscr();
