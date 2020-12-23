@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <curses.h>
 #include <mutex>
 
@@ -9,7 +10,7 @@
 class Curses {
 
     static const size_t _menuHeight = 3u;
-    bool _active = false;
+    std::atomic<bool> _active{false};
     std::vector<std::string> _tabs;
     std::mutex _mtx;
     Screen& _screen;
@@ -27,7 +28,6 @@ public:
         ::noecho();
         ::cbreak();
         ::keypad(stdscr, true);
-        ::refresh();
         _active = has_colors();
 
         if (_active) {
@@ -86,6 +86,7 @@ public:
                     break;
                 case 'q':
                 case 'Q':
+                    _active = false;
                     return true;
                     break;
             }

@@ -7,13 +7,40 @@ struct Configuration {
     std::vector<std::unique_ptr<LogReader>> readers;
 };
 
+#include <cstring>
+
 bool initialize(int argc, char* argv[], Configuration* config) {
 
     const auto noop = [](){};
 
+    enum class Option { Input, Filter } option;
+    int id = 0;
+
     for (int i=1; i<argc; i++) {
-        LOG("Reading file " << argv[i]);
-        config->readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, config->screen.getAppender(argv[i], i-1)));
+
+        LOG("Parsing option " << argv[i]);
+        if (std::strcmp(argv[i], "-i") == 0) {
+            option = Option::Input;
+            LOG("Option Input");
+        }
+        else if (argv[i] == "-f") {
+            option = Option::Filter;
+            LOG("Option Filter");
+        }
+        else {
+            switch (option) {
+                case Option::Input:
+                    LOG("Input value");
+                    config->readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, config->screen.getAppender(argv[i], id++)));
+                    break;
+                case Option::Filter:
+                    LOG("Filter value");
+                    break;
+                default:
+                    LOG("Option unrecognized");
+                    return false;
+            }
+        }
     }
 
     return true;
