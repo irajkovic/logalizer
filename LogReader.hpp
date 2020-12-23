@@ -1,5 +1,9 @@
 #pragma once
 
+#include <fstream>
+#include <functional>
+#include <future>
+
 #include "Log.hpp"
 
 class LogReader {

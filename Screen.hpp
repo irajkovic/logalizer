@@ -1,5 +1,8 @@
 #pragma once
 
+#include <functional>
+#include <vector>
+
 #include "Log.hpp"
 #include "LogLine.hpp"
 

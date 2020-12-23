@@ -1,5 +1,8 @@
 #pragma once
 
+#include <curses.h>
+#include <mutex>
+
 #include "Screen.hpp"
 #include "Log.hpp"
 

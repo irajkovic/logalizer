@@ -1,16 +1,3 @@
-#include <curses.h>
-#include <stdlib.h>
-#include <iostream>
-#include <vector>
-#include <string>
-#include <fstream>
-#include <chrono>
-#include <thread>
-#include <functional>
-#include <future>
-#include <csignal>
-#include <chrono>
-
 #include "Curses.hpp"
 #include "Screen.hpp"
 #include "LogReader.hpp"
