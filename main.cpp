@@ -1,46 +1,23 @@
 #include "Curses.hpp"
 #include "Screen.hpp"
 #include "LogReader.hpp"
+#include "Options.hpp"
+
+#include <string>
 
 struct Configuration {
     Screen screen;
     std::vector<std::unique_ptr<LogReader>> readers;
 };
 
-#include <cstring>
-
-bool initialize(int argc, char* argv[], Configuration* config) {
+bool initialize(Configuration* config, const Options& options) {
 
     const auto noop = [](){};
 
-    enum class Option { Input, Filter } option;
     int id = 0;
 
-    for (int i=1; i<argc; i++) {
-
-        LOG("Parsing option " << argv[i]);
-        if (std::strcmp(argv[i], "-i") == 0) {
-            option = Option::Input;
-            LOG("Option Input");
-        }
-        else if (argv[i] == "-f") {
-            option = Option::Filter;
-            LOG("Option Filter");
-        }
-        else {
-            switch (option) {
-                case Option::Input:
-                    LOG("Input value");
-                    config->readers.emplace_back(std::make_unique<LogReader>(argv[i], noop, config->screen.getAppender(argv[i], id++)));
-                    break;
-                case Option::Filter:
-                    LOG("Filter value");
-                    break;
-                default:
-                    LOG("Option unrecognized");
-                    return false;
-            }
-        }
+    for (const auto& input : options.inputs) {
+        config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->screen.getAppender(input, id++)));
     }
 
     return true;
@@ -48,10 +25,15 @@ bool initialize(int argc, char* argv[], Configuration* config) {
 
 int main(int argc, char* argv[]) {
 
+    Options options;
     Configuration configuration;
     Curses curses(configuration.screen);
 
-    if (!initialize(argc, argv, &configuration)) {
+    if (!parseOptions(&options, argc, argv)) {
+        return EXIT_FAILURE;
+    }
+
+    if (!initialize(&configuration, options)) {
         return EXIT_FAILURE;
     }
 
