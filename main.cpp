@@ -14,12 +14,13 @@ bool initialize(Configuration* config, const Options::Options& options) {
 
     const auto noop = [](){};
 
-    for (const auto& input : options.inputs) {
-        config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->screen.getAppender(input)));
-    }
-
+    // Filters must be available before the input is read
     for (const auto& filter : options.filters) {
         config->screen.addFilter(filter.name, filter.regex);
+    }
+
+    for (const auto& input : options.inputs) {
+        config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->screen.getAppender(input)));
     }
 
     return true;
