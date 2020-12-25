@@ -9,7 +9,7 @@
 
 class Curses {
 
-    static const size_t _menuHeight = 3u;
+    int _menuHeight = 0;
     std::atomic<bool> _active{false};
     std::vector<std::string> _tabs;
     Screen& _screen;
@@ -33,21 +33,20 @@ public:
         if (_active) {
             start_color();
             init_pair(1, COLOR_WHITE, COLOR_BLACK);
-            init_pair(2, COLOR_GREEN, COLOR_BLACK);
-            init_pair(3, COLOR_YELLOW, COLOR_BLACK);
+            init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+            init_pair(3, COLOR_GREEN, COLOR_BLACK);
             init_pair(4, COLOR_MAGENTA, COLOR_BLACK);
             init_pair(5, COLOR_CYAN, COLOR_BLACK);
+            init_pair(6, COLOR_BLUE, COLOR_BLACK);
+            init_pair(7, COLOR_RED, COLOR_BLACK);
 
-
-            init_pair(6, COLOR_GREEN, COLOR_BLACK);
-            init_pair(7, COLOR_YELLOW, COLOR_BLACK);
-            init_pair(8, COLOR_MAGENTA, COLOR_BLACK);
-
-            init_pair(9,  COLOR_BLACK, COLOR_WHITE);
+            init_pair(8,  COLOR_BLACK, COLOR_WHITE);
+            init_pair(9, COLOR_BLACK, COLOR_YELLOW);
             init_pair(10, COLOR_BLACK, COLOR_GREEN);
-            init_pair(11, COLOR_BLACK, COLOR_YELLOW);
-            init_pair(12, COLOR_BLACK, COLOR_MAGENTA);
-            init_pair(13, COLOR_BLACK, COLOR_CYAN);
+            init_pair(11, COLOR_BLACK, COLOR_MAGENTA);
+            init_pair(12, COLOR_BLACK, COLOR_CYAN);
+            init_pair(13, COLOR_BLACK, COLOR_BLUE);
+            init_pair(14, COLOR_BLACK, COLOR_RED);
 
         }
 
@@ -103,19 +102,28 @@ public:
         _tabs[index] = name;
     }
 
-    void drawMenu() {
-        size_t column = 2u;
+    int drawMenu(int maxcol) {
+        int column = 2;
+        int row = 1;
         for (int i=0; i<_screen.getTabCnt(); i++) {
             auto tab = _screen.getTab(i);
 
             if (tab == nullptr) {
-                return;
+                return row +2;
             }
 
-            tab->enabled ? attron(COLOR_PAIR(i+9)) : attron(COLOR_PAIR(i+1));
-            mvprintw(1, column, "[%d] %s", i, tab->name.c_str());
+            tab->enabled ? attron(COLOR_PAIR(i+8)) : attron(COLOR_PAIR(i+1));
+
+            if (column + tab->name.length() > maxcol) {
+                column = 2u;
+                row += 2;
+            }
+
+            mvprintw(row, column, "[%d] %s (%d)", i, tab->name.c_str(), tab->rowsCnt);
             column += tab->name.length() + 10u;
         }
+
+        return row + 2;
     }
     
     void redraw() {
@@ -129,7 +137,7 @@ public:
         getmaxyx(stdscr, row, col);
        
         ::clear();
-        drawMenu();
+        _menuHeight = drawMenu(col);
 
         _screen.prepareLines();
         for (int i=0; i<row; i++) {
