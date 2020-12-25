@@ -113,9 +113,9 @@ public:
                 return;
             }
 
-            tab->enabled ? attron(COLOR_PAIR(i+1)) : attron(COLOR_PAIR(i+9));
-            column += tab->name.size() + 10u;
+            tab->enabled ? attron(COLOR_PAIR(i+9)) : attron(COLOR_PAIR(i+1));
             mvprintw(1, column, "[%d] %s", i, tab->name.c_str());
+            column += tab->name.length() + 10u;
         }
     }
     

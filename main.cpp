@@ -10,14 +10,16 @@ struct Configuration {
     std::vector<std::unique_ptr<LogReader>> readers;
 };
 
-bool initialize(Configuration* config, const Options& options) {
+bool initialize(Configuration* config, const Options::Options& options) {
 
     const auto noop = [](){};
 
-    int id = 0;
-
     for (const auto& input : options.inputs) {
-        config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->screen.getAppender(input, id++)));
+        config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->screen.getAppender(input)));
+    }
+
+    for (const auto& filter : options.filters) {
+        config->screen.addFilter(filter.name, filter.regex);
     }
 
     return true;
@@ -25,11 +27,11 @@ bool initialize(Configuration* config, const Options& options) {
 
 int main(int argc, char* argv[]) {
 
-    Options options;
+    Options::Options options;
     Configuration configuration;
     Curses curses(configuration.screen);
 
-    if (!parseOptions(&options, argc, argv)) {
+    if (!Options::parseOptions(&options, argc, argv)) {
         return EXIT_FAILURE;
     }
 

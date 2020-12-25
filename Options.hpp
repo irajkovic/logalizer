@@ -7,6 +7,8 @@
 
 #include "Log.hpp"
 
+namespace Options {
+
 struct Filter {
     std::string name;
     std::string regex;
@@ -75,3 +77,5 @@ bool parseOptions(Options* options, int argc, char* argv[]) {
     return true;
 }
 
+
+} // namespace Options

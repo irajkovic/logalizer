@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <vector>
+#include <regex>
 
 #include "Log.hpp"
 #include "LogLine.hpp"
@@ -9,6 +10,12 @@
 struct Tab {
     std::string name;
     bool enabled;
+};
+
+struct Filter {
+    int id;
+    std::string name;
+    std::regex regex;
 };
 
 class Screen {
@@ -69,7 +76,14 @@ public:
         _onNewDataAvailable = listener;
     }
 
-    std::function<void(std::string)> getAppender(std::string name, int id) {
+    void addFilter(const std::string& name, const std::string& regex) {
+        _filters.emplace_back(Filter{_id++, name, std::regex{regex}});
+        _tabs.emplace_back(Tab{name, true});
+    }
+
+    std::function<void(std::string)> getAppender(std::string name) {
+
+        auto id = _id++;
 
         LOG("Appender " << name << " (" << id << ")");
         _tabs.emplace_back(Tab{name, true});
@@ -81,24 +95,37 @@ public:
 
     void addLine(const std::string& text, int id) {
         {
-            std::lock_guard<std::mutex> g(_mtx);
-            _lines.emplace_back(LogLine{std::chrono::steady_clock::now(), text, id});
+            LogLine line{std::chrono::steady_clock::now(), text, id};
+
+            // Matching filter takes the ownership of the line.
+            for (const auto& filter : _filters) {
+                if (std::regex_match(text, filter.regex)) {
+                    LOG("Line matches regex: " << text);
+                    line.id = filter.id;
+                    break;
+                }
+            }
+
+            {
+                std::lock_guard<std::mutex> g(_mtx);
+                _lines.emplace_back(line);
+            }
             
             if (_onNewDataAvailable) {
                 _onNewDataAvailable();
             }
-
-            LOG("Added line, size=" << _lines.size());
         }
     }
 
 
 private:
     std::mutex  _mtx;
+    int         _id = 0;
     size_t      _row = 0;
     size_t      _nextLine = 0;
     std::vector<LogLine> _lines;
     std::vector<Tab> _tabs;
+    std::vector<Filter> _filters;
     std::function<void()> _onNewDataAvailable;
 };
 
