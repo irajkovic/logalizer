@@ -19,7 +19,7 @@ public:
 
     Curses(Screen& screen) : _screen(screen) {
         screen.registerOnNewDataAvailableListener([this](){
-            refresh();
+            redraw();
         });
     }
 
@@ -63,7 +63,7 @@ public:
         }
 
         while (true) {
-            refresh();
+            redraw();
             int ch = getch();
             switch (ch) {
                 case '0':
@@ -105,7 +105,6 @@ public:
 
     void drawMenu() {
         size_t column = 2u;
-        std::lock_guard<std::mutex> g(_mtx);
         for (int i=0; i<_screen.getTabCnt(); i++) {
             auto tab = _screen.getTab(i);
 
@@ -119,7 +118,9 @@ public:
         }
     }
     
-    void refresh() {
+    void redraw() {
+
+        std::lock_guard<std::mutex> g(_mtx);
 
         int row, col;
         getmaxyx(stdscr, row, col);
@@ -144,7 +145,6 @@ public:
     void printLine(int row, std::string line, int index) {
         if (_active) {
             attron(COLOR_PAIR(index+1));
-            std::lock_guard<std::mutex> g(_mtx);
             mvprintw(row + _menuHeight, 0, "[%i] %s", index, line.c_str());
         }
     }

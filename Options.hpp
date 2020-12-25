@@ -45,7 +45,6 @@ bool parseOptions(Options* options, int argc, char* argv[]) {
 
     for (int i=1; i<argc; i++) {
 
-        LOG("Parsing option " << argv[i]);
         if (std::strcmp(argv[i], "-i") == 0) {
             option = Option::Input;
         }
@@ -55,6 +54,7 @@ bool parseOptions(Options* options, int argc, char* argv[]) {
         else {
             switch (option) {
                 case Option::Input:
+                    LOG("Parsed input: " << argv[i]);
                     options->inputs.emplace_back(argv[i]);
                     break;
                 case Option::Filter:
@@ -63,7 +63,7 @@ bool parseOptions(Options* options, int argc, char* argv[]) {
                         options->filters.emplace_back(*filter);
                     }
                     else {
-                        LOG("Cannot parse filter: " << argv[i]);
+                        LOG("Failed to parse filter: " << argv[i]);
                         return false;
                     }
                     break;
