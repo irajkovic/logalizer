@@ -12,8 +12,8 @@ class Curses {
     static const size_t _menuHeight = 3u;
     std::atomic<bool> _active{false};
     std::vector<std::string> _tabs;
-    std::mutex _mtx;
     Screen& _screen;
+    std::atomic<bool> _drawing{false};
 
 public:
 
@@ -120,7 +120,10 @@ public:
     
     void redraw() {
 
-        std::lock_guard<std::mutex> g(_mtx);
+        bool expected = false;
+        if (!_drawing.compare_exchange_weak(expected, true)) {
+            return;
+        }
 
         int row, col;
         getmaxyx(stdscr, row, col);
@@ -140,6 +143,7 @@ public:
         }
 
         ::refresh();
+        _drawing = false;
     }
 
     void printLine(int row, std::string line, int index) {
