@@ -92,6 +92,10 @@ public:
         _row = (_row < maxLines) ? (_row + 1) : (0);
     }
 
+    size_t getRow() {
+        return _row;
+    }
+
     void registerOnNewDataAvailableListener(std::function<void()> listener) {
         _onNewDataAvailable = listener;
     }

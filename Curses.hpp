@@ -114,11 +114,16 @@ public:
         return stream.str();
     }
 
+    void drawStatusPanel(int startRow, int startCol) {
+       mvprintw(startRow, startCol, "ROW: %d", _screen.getRow());
+    }
+
     int drawMenu(int maxcol) {
 
         static const int kHorMargin = 2;
         static const int kVerMargin = 0;
         static const int kVerPadding = 2;
+        static const int kRightPanelWidth = 20;
 
         int row = kVerMargin;
         int column = kHorMargin;
@@ -135,7 +140,7 @@ public:
 
             auto tabTitle = getTabTitle(*tab, i);
 
-            if (column + tabTitle.length() > maxcol) {
+            if (column + tabTitle.length() > maxcol - kRightPanelWidth) {
                 column = kHorMargin;
                 row += kVerPadding;
             }
@@ -143,6 +148,8 @@ public:
             mvprintw(row, column, "%s", tabTitle.c_str());
             column += tabTitle.length() + kHorMargin;
         }
+
+        drawStatusPanel(kVerMargin, maxcol - kRightPanelWidth);
 
         return row + kVerPadding;
     }
