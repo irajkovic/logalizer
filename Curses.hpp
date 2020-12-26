@@ -139,25 +139,28 @@ public:
         ::clear();
         _menuHeight = drawMenu(col);
 
-        _screen.prepareLines();
-        for (int i=0; i<row; i++) {
-            LogLine* line = _screen.nextLine();
+        _screen.prepareLines(col);
+        for (size_t i = 0; i < row; i++) {
+            auto line = _screen.nextLine();
 
-            if (line == nullptr) {
+            if (!line.isValid()) {
+                LOG("Line not valid: " << line.row);
                 break;
             }
 
-            printLine(i, line->text, line->id);
+            LOG("Line: " << line.row << ", " << line.text);
+
+            printLine(i, line);
         }
 
         ::refresh();
         _drawing = false;
     }
 
-    void printLine(int row, std::string line, int index) {
+    void printLine(int row, const LogLine& line) {
         if (_active) {
-            attron(COLOR_PAIR(index+1));
-            mvprintw(row + _menuHeight, 0, "[%i] %s", index, line.c_str());
+            attron(COLOR_PAIR(line.id + 1));
+            mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.row, line.id, line.text.c_str());
         }
     }
 

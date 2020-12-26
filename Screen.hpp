@@ -1,8 +1,10 @@
 #pragma once
 
+#include <chrono>
 #include <functional>
 #include <vector>
 #include <regex>
+#include <string>
 
 #include "Log.hpp"
 #include "LogLine.hpp"
@@ -21,13 +23,25 @@ struct Filter {
 
 class Screen {
 
+    struct LogLineInternal {
+        std::chrono::time_point<std::chrono::steady_clock> time;
+        std::string text;
+        size_t id;
+    };
+
 public:
 
-    void prepareLines() {
+    void prepareLines(int needed) {
+    #if 0
+        auto maxLines = getLinesCntWithFilters();
+        if (_row >= maxLines - needed) {
+            row = maxLinues - needed;
+        }
+    #endif
         _nextLine = _row;    
     }
 
-    LogLine* nextLine() {
+    LogLine nextLine() {
 
         // TODO :: Use locking algorithm
         std::lock_guard<std::mutex> g1(_tabMtx);
@@ -40,10 +54,11 @@ public:
         }
 
         if (_nextLine < _lines.size()) {
-            return &_lines[_nextLine++];
+            const auto& line = _lines[_nextLine];
+            return LogLine{_nextLine++, line.id, line.time, line.text, true};
         }
 
-        return nullptr;
+        return {};
     }
 
     void toggleTab(int id) {
@@ -103,7 +118,7 @@ public:
 
     void addLine(const std::string& text, int id) {
 
-        LogLine line{std::chrono::steady_clock::now(), text, id};
+        LogLineInternal line{std::chrono::steady_clock::now(), text, id};
 
         // Matching filter takes the ownership of the line.
          
@@ -145,7 +160,7 @@ private:
     int         _id = 0;
     size_t      _row = 0;
     size_t      _nextLine = 0;
-    std::vector<LogLine> _lines;
+    std::vector<LogLineInternal> _lines;
     std::vector<Tab> _tabs;
     std::vector<Filter> _filters;
     std::function<void()> _onNewDataAvailable;
