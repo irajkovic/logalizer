@@ -150,6 +150,10 @@ public:
     
     void redraw() {
 
+        if (!_active) {
+            return;
+        }
+
         bool expected = false;
         if (!_drawing.compare_exchange_weak(expected, true)) {
             return;
