@@ -16,7 +16,7 @@ struct Tab {
 };
 
 struct Filter {
-    int id;
+    int src;
     std::string name;
     std::regex regex;
 };
@@ -26,7 +26,7 @@ class Screen {
     struct LogLineInternal {
         std::chrono::time_point<std::chrono::steady_clock> time;
         std::string text;
-        size_t id;
+        uint8_t src;
     };
 
 public:
@@ -49,32 +49,32 @@ public:
 
         // Skip lines from disabled tabs
         while ((_nextLine < _lines.size())
-                && !_tabs[_lines[_nextLine].id].enabled) {
+                && !_tabs[_lines[_nextLine].src].enabled) {
             _nextLine++;
         }
 
         if (_nextLine < _lines.size()) {
             const auto& line = _lines[_nextLine];
-            return LogLine{_nextLine++, line.id, line.time, line.text, true};
+            return LogLine{line.time, line.text, _nextLine++, line.src, true};
         }
 
         return {};
     }
 
-    void toggleTab(int id) {
+    void toggleTab(uint8_t src) {
         std::lock_guard<std::mutex> g(_tabMtx);
-        _tabs[id].enabled = !_tabs[id].enabled;
+        _tabs[src].enabled = !_tabs[src].enabled;
     }
 
-    Tab* getTab(int id) {
+    Tab* getTab(uint8_t src) {
         std::lock_guard<std::mutex> g(_tabMtx);
-        if (id < _tabs.size()) {
-            return &_tabs[id];
+        if (src < _tabs.size()) {
+            return &_tabs[src];
         }
         return nullptr;
     }
 
-    size_t getTabCnt() {
+    uint8_t getTabCnt() {
         std::lock_guard<std::mutex> g(_tabMtx);
         return _tabs.size();
     }
@@ -97,28 +97,28 @@ public:
     }
 
     void addFilter(const std::string& name, const std::string& regex) {
-        LOG("Filter " << name << " (" << _id << ")");
+        LOG("Filter " << name << " (" << _src << ")");
         std::lock_guard<std::mutex> g(_tabMtx);
-        _filters.emplace_back(Filter{_id++, name, std::regex{regex}});
+        _filters.emplace_back(Filter{_src++, name, std::regex{regex}});
         _tabs.emplace_back(Tab{name, true, 0});
     }
 
     std::function<void(std::string)> getAppender(std::string name) {
 
-        auto id = _id++;
+        auto src = _src++;
 
-        LOG("Appender " << name << " (" << id << ")");
+        LOG("Appender " << name << " (" << src << ")");
         std::lock_guard<std::mutex> g(_tabMtx);
         _tabs.emplace_back(Tab{name, true});
 
-        return [this, id] (std::string line) {
-            addLine(line, id);
+        return [this, src] (std::string line) {
+            addLine(line, src);
         };
     }
 
-    void addLine(const std::string& text, int id) {
+    void addLine(const std::string& text, uint8_t src) {
 
-        LogLineInternal line{std::chrono::steady_clock::now(), text, id};
+        LogLineInternal line{std::chrono::steady_clock::now(), text, src};
 
         // Matching filter takes the ownership of the line.
          
@@ -126,7 +126,7 @@ public:
             std::lock_guard<std::mutex> g(_tabMtx);
             for (const auto& filter : _filters) {
                 if (std::regex_match(text, filter.regex)) {
-                    line.id = filter.id;
+                    line.src = filter.src;
                     break;
                 }
             }
@@ -135,7 +135,7 @@ public:
         {
             std::lock_guard<std::mutex> g(_mtx);
             _lines.emplace_back(line);
-            _tabs[line.id].rowsCnt++;
+            _tabs[line.src].rowsCnt++;
         }
         
         if (_onNewDataAvailable) {
@@ -157,7 +157,7 @@ public:
 private:
     std::mutex  _mtx;
     std::mutex  _tabMtx;
-    int         _id = 0;
+    int         _src = 0;
     size_t      _row = 0;
     size_t      _nextLine = 0;
     std::vector<LogLineInternal> _lines;

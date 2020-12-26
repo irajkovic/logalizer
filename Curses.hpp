@@ -102,28 +102,50 @@ public:
         _tabs[index] = name;
     }
 
+    std::string getTabTitle(const Tab& tab, const uint8_t src) {
+        const int kMaxNameLength = 16;
+        std::stringstream stream;
+
+        std::string tabName = tab.name;;
+        if (tabName.length() > kMaxNameLength) {
+            tabName = tabName.substr(tabName.length() - kMaxNameLength, std::string::npos);
+        }
+
+        stream << "[" << static_cast<int>(src) << "] "  << tabName << " (" << tab.rowsCnt << ")";
+        return stream.str();
+    }
+
     int drawMenu(int maxcol) {
-        int column = 2;
-        int row = 1;
-        for (int i=0; i<_screen.getTabCnt(); i++) {
+
+        static const int kHorMargin = 2;
+        static const int kVerMargin = 0;
+        static const int kVerPadding = 2;
+
+        int row = kVerMargin;
+        int column = kHorMargin;
+
+        for (int i = 0; i < _screen.getTabCnt(); i++) {
+
             auto tab = _screen.getTab(i);
 
             if (tab == nullptr) {
-                return row +2;
+                return row + kVerPadding;
             }
 
             tab->enabled ? attron(COLOR_PAIR(i+8)) : attron(COLOR_PAIR(i+1));
 
-            if (column + tab->name.length() > maxcol) {
-                column = 2u;
-                row += 2;
+            auto tabTitle = getTabTitle(*tab, i);
+
+            if (column + tabTitle.length() > maxcol) {
+                column = kHorMargin;
+                row += kVerPadding;
             }
 
-            mvprintw(row, column, "[%d] %s (%d)", i, tab->name.c_str(), tab->rowsCnt);
-            column += tab->name.length() + 10u;
+            mvprintw(row, column, "%s", tabTitle.c_str());
+            column += tabTitle.length() + kHorMargin;
         }
 
-        return row + 2;
+        return row + kVerPadding;
     }
     
     void redraw() {
@@ -144,11 +166,9 @@ public:
             auto line = _screen.nextLine();
 
             if (!line.isValid()) {
-                LOG("Line not valid: " << line.row);
+                LOG("Line not valid: " << line.id);
                 break;
             }
-
-            LOG("Line: " << line.row << ", " << line.text);
 
             printLine(i, line);
         }
@@ -159,8 +179,8 @@ public:
 
     void printLine(int row, const LogLine& line) {
         if (_active) {
-            attron(COLOR_PAIR(line.id + 1));
-            mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.row, line.id, line.text.c_str());
+            attron(COLOR_PAIR(line.src + 1));
+            mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
         }
     }
 
