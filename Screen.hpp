@@ -5,14 +5,21 @@
 #include <vector>
 #include <regex>
 #include <string>
+#include <limits>
 
 #include "Log.hpp"
 #include "LogLine.hpp"
+
+namespace {
+    const size_t kUndefined = std::numeric_limits<size_t>::max();
+};
 
 struct Tab {
     std::string name;
     bool enabled;
     size_t rowsCnt{0};
+    size_t minLineId{kUndefined};
+    size_t maxLineId{kUndefined};
 };
 
 struct Filter {
@@ -31,14 +38,58 @@ class Screen {
 
 public:
 
-    void prepareLines(int needed) {
-    #if 0
-        auto maxLines = getLinesCntWithFilters();
-        if (_row >= maxLines - needed) {
-            row = maxLinues - needed;
+    std::string getDebugInfo() {
+        std::stringstream stream;
+        stream << "r=" << _row
+               << ", min=" << getMinLineWithFilters()
+               << ", max=" << getMaxLineWithFilters();
+        return stream.str();
+    }
+
+    size_t clamp(size_t wanted, size_t min, size_t max) {
+        if (wanted < min) {
+            return min;
         }
-    #endif
-        _nextLine = _row;    
+        else if (wanted > max) {
+            return max;
+        }
+        else {
+            return wanted;
+        }
+    }
+
+    size_t clampRow(size_t wanted) {
+        return clamp(wanted, getMinLineWithFilters(), getMaxLineWithFilters());
+    }
+
+    void scrollUp() {
+        std::lock_guard<std::mutex> g(_mtx);
+        _row = clampRow(reverseFiltered(_row));
+    }
+
+    void scrollDown() {
+        std::lock_guard<std::mutex> g(_mtx);
+        _row = clampRow(fastForwardFiltered(_row));
+    }
+
+    size_t reverseFiltered(const size_t from) {
+        size_t i = from - 1u;
+        while ((i < _lines.size()) && !_tabs[_lines[i].src].enabled) {
+            i--;
+        }
+        return (i < _lines.size()) ? i : from;
+    }
+
+    size_t fastForwardFiltered(const size_t from) {
+        size_t i = from + 1u;
+        while ((i < _lines.size()) && !_tabs[_lines[i].src].enabled) {
+            i++;
+        }
+        return (i < _lines.size()) ? i : kUndefined;
+    }
+
+    void prepareLines() {
+        _nextLine = clampRow(_row);
     }
 
     LogLine nextLine() {
@@ -47,18 +98,14 @@ public:
         std::lock_guard<std::mutex> g1(_tabMtx);
         std::lock_guard<std::mutex> g2(_mtx);
 
-        // Skip lines from disabled tabs
-        while ((_nextLine < _lines.size())
-                && !_tabs[_lines[_nextLine].src].enabled) {
-            _nextLine++;
+        if (_nextLine == kUndefined) {
+            return {};
         }
 
-        if (_nextLine < _lines.size()) {
-            const auto& line = _lines[_nextLine];
-            return LogLine{line.time, line.text, _nextLine++, line.src, true};
-        }
-
-        return {};
+        const auto& internal = _lines[_nextLine];
+        LogLine line{internal.time, internal.text, _nextLine, internal.src, true};
+        _nextLine = fastForwardFiltered(_nextLine);
+        return line;
     }
 
     void toggleTab(uint8_t src) {
@@ -79,19 +126,6 @@ public:
         return _tabs.size();
     }
 
-    void scrollUp() {
-        std::lock_guard<std::mutex> g(_mtx);
-        if (_row > 0) {
-            --_row;
-        }
-    }
-
-    void scrollDown() {
-        std::lock_guard<std::mutex> g(_mtx);
-        auto maxLines = getLinesCntWithFilters();
-        _row = (_row < maxLines) ? (_row + 1) : (0);
-    }
-
     size_t getRow() {
         return _row;
     }
@@ -104,7 +138,7 @@ public:
         LOG("Filter " << name << " (" << _src << ")");
         std::lock_guard<std::mutex> g(_tabMtx);
         _filters.emplace_back(Filter{_src++, name, std::regex{regex}});
-        _tabs.emplace_back(Tab{name, true, 0});
+        _tabs.emplace_back(Tab{name, true, 0, kUndefined});
     }
 
     std::function<void(std::string)> getAppender(std::string name) {
@@ -140,11 +174,39 @@ public:
             std::lock_guard<std::mutex> g(_mtx);
             _lines.emplace_back(line);
             _tabs[line.src].rowsCnt++;
+
+            if (_tabs[line.src].minLineId == kUndefined) {
+                _tabs[line.src].minLineId = _lines.size() - 1u;
+            }
+
+            _tabs[line.src].maxLineId = _lines.size() - 1u;
         }
         
         if (_onNewDataAvailable) {
             _onNewDataAvailable();
         }
+    }
+
+    size_t getMinLineWithFilters() {
+        std::lock_guard<std::mutex> g(_tabMtx);
+        size_t minLineId = kUndefined;
+        for (const auto& tab : _tabs) {
+            if (tab.enabled && (tab.minLineId < minLineId)) {
+                minLineId = tab.minLineId;
+            }
+        }
+        return minLineId;    
+    }
+
+    size_t getMaxLineWithFilters() {
+        std::lock_guard<std::mutex> g(_tabMtx);
+        size_t maxLineId = 0u;
+        for (const auto& tab : _tabs) {
+            if (tab.enabled && (tab.maxLineId > maxLineId)) {
+                maxLineId = tab.maxLineId;
+            }
+        }
+        return maxLineId;    
     }
 
     size_t getLinesCntWithFilters() {

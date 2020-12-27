@@ -14,6 +14,7 @@ class Curses {
     std::vector<std::string> _tabs;
     Screen& _screen;
     std::atomic<bool> _drawing{false};
+    bool _enableScrollDown{true};
 
 public:
 
@@ -61,7 +62,6 @@ public:
         }
 
         while (true) {
-            redraw();
             int ch = getch();
             switch (ch) {
                 case '0':
@@ -75,12 +75,15 @@ public:
                 case '8':
                 case '9':
                     _screen.toggleTab(ch - '0');
+                    redraw();
                     break;
                 case KEY_UP:
                     _screen.scrollUp();
+                    redraw();
                     break;
                 case KEY_DOWN:
                     _screen.scrollDown();
+                    redraw();
                     break;
                 case 'q':
                 case 'Q':
@@ -115,7 +118,7 @@ public:
     }
 
     void drawStatusPanel(int startRow, int startCol) {
-       mvprintw(startRow, startCol, "ROW: %d", _screen.getRow());
+       mvprintw(startRow, startCol, "%s", _screen.getDebugInfo().c_str());
     }
 
     int drawMenu(int maxcol) {
@@ -170,13 +173,14 @@ public:
        
         ::clear();
         _menuHeight = drawMenu(screenHeight);
-        _screen.prepareLines(screenHeight);
+        _screen.prepareLines();
 
         for (size_t i = 0; i < screenHeight; i++) {
             auto line = _screen.nextLine();
 
             if (!line.isValid()) {
                 LOG("Line not valid: " << line.id);
+                _enableScrollDown = false;
                 break;
             }
 
