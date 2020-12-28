@@ -149,7 +149,7 @@ public:
                 return row + kVerPadding;
             }
 
-            setColor(i, tab->enabled);
+            setColor(i, !tab->enabled);
 
             auto tabTitle = getTabTitle(*tab, i);
 
