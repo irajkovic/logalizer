@@ -14,33 +14,49 @@ struct Filter {
     std::string regex;
 };
 
+struct External {
+    std::string name;
+    std::string command;
+};
+
 struct Options {
     std::vector<std::string> inputs;
     std::vector<Filter> filters;
+    std::vector<External> externals;
 };
 
-
-std::optional<Filter> parseFilter(const std::string& raw) {
-    // Expected format "name:regex"
+std::pair<std::string, std::string> parseNameValuePair(bool *success, const std::string& raw) {
+    // Expected format "name:value"
     size_t separatorInd = raw.find(":");
 
     if (separatorInd == std::string::npos) {
-        return std::nullopt;
+        return {};
     }
 
     if (separatorInd >= raw.length()) {
-        return std::nullopt;
+        return {};
     }
 
-    Filter filter;
-    filter.name = raw.substr(0, separatorInd);
-    filter.regex = raw.substr(separatorInd + 1, std::string::npos);
-    return filter;
+    *success = true;
+    return std::make_pair(raw.substr(0, separatorInd), raw.substr(separatorInd + 1, std::string::npos));
+}
+
+template <typename T>
+void parse(bool *success, std::vector<T>* out, const std::string& raw) {
+    auto parsed = parseNameValuePair(success, raw);
+    if (*success) {
+        out->emplace_back(T{parsed.first, parsed.second});
+    }
+}
+
+void parse(bool *success, std::vector<std::string>* out, const std::string& raw) {
+    out->emplace_back(raw);
+    *success = true;
 }
 
 bool parseOptions(Options* options, int argc, char* argv[]) {
 
-    enum class Option { Input, Filter } option;
+    enum class Option { Input, Filter, External } option;
     int id = 0;
 
     for (int i=1; i<argc; i++) {
@@ -51,31 +67,31 @@ bool parseOptions(Options* options, int argc, char* argv[]) {
         else if (std::strcmp(argv[i], "-f") == 0) {
             option = Option::Filter;
         }
+        else if (std::strcmp(argv[i], "-e") == 0) {
+            option = Option::External;
+        }
         else {
+            bool success = false;
             switch (option) {
                 case Option::Input:
-                    LOG("Parsed input: " << argv[i]);
-                    options->inputs.emplace_back(argv[i]);
+                    parse(&success, &options->inputs, argv[i]);
                     break;
                 case Option::Filter:
-                    if (auto filter = parseFilter(argv[i])) {
-                        LOG("Parsed filter: " << filter->name << ", " << filter->regex);
-                        options->filters.emplace_back(*filter);
-                    }
-                    else {
-                        LOG("Failed to parse filter: " << argv[i]);
-                        return false;
-                    }
+                    parse<Filter>(&success, &options->filters,  argv[i]);
                     break;
-                default:
-                    LOG("Option unrecognized: " << argv[i]);
-                    return false;
+                case Option::External:
+                    parse<External>(&success, &options->externals, argv[i]);
+                    break;
+            }
+
+            if (!success) {
+                LOG("Failed to parse option: " << argv[i]);
+                return false;
             }
         }
     }
 
     return true;
 }
-
 
 } // namespace Options
