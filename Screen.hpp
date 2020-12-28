@@ -6,9 +6,11 @@
 #include <regex>
 #include <string>
 #include <limits>
+#include <map>
 
 #include "Log.hpp"
 #include "LogLine.hpp"
+#include "Exec.hpp"
 
 namespace {
     const size_t kUndefined = std::numeric_limits<size_t>::max();
@@ -26,6 +28,7 @@ struct Filter {
     int src;
     std::string name;
     std::regex regex;
+    std::string command;
 };
 
 class Screen {
@@ -103,7 +106,13 @@ public:
         }
 
         const auto& internal = _lines[_nextLine];
-        LogLine line{internal.time, internal.text, _nextLine, internal.src, true};
+        LogLine line{internal.time, internal.text, "", _nextLine, internal.src, true};
+
+        auto comment = _comments.find(_nextLine);
+        if (comment != std::end(_comments)) {
+            line.comment = comment->second;
+        }
+
         _nextLine = fastForwardFiltered(_nextLine);
         return line;
     }
@@ -141,6 +150,16 @@ public:
         _tabs.emplace_back(Tab{name, true, 0, kUndefined});
     }
 
+    bool addExternal(const std::string& name, const std::string& command) {
+        for (auto& filter : _filters) {
+            if (filter.name == name) {
+                filter.command = command;
+                return true;
+            }
+        }
+        return false;
+    }
+
     std::function<void(std::string)> getAppender(std::string name) {
 
         auto src = _src++;
@@ -157,14 +176,19 @@ public:
     void addLine(const std::string& text, uint8_t src) {
 
         LogLineInternal line{std::chrono::steady_clock::now(), text, src};
+        const std::string *command = nullptr;
 
         // Matching filter takes the ownership of the line.
-         
         {
             std::lock_guard<std::mutex> g(_tabMtx);
             for (const auto& filter : _filters) {
                 if (std::regex_match(text, filter.regex)) {
                     line.src = filter.src;
+
+                    if (!filter.command.empty()) {
+                        command = &filter.command;
+                    }
+
                     break;
                 }
             }
@@ -172,14 +196,23 @@ public:
 
         {
             std::lock_guard<std::mutex> g(_mtx);
-            _lines.emplace_back(line);
-            _tabs[line.src].rowsCnt++;
+            auto lineId = _lines.size();
 
+            
+            _lines.emplace_back(line);
+
+            // Update tabs
+            _tabs[line.src].rowsCnt++;
+            _tabs[line.src].maxLineId = lineId;
             if (_tabs[line.src].minLineId == kUndefined) {
-                _tabs[line.src].minLineId = _lines.size() - 1u;
+                _tabs[line.src].minLineId = lineId;
             }
 
-            _tabs[line.src].maxLineId = _lines.size() - 1u;
+            // Run command
+            if (command) {
+                _comments[lineId] = exec(*command, text);
+                LOG("Added comment (" << lineId << ") "  << _comments[lineId]);
+            }
         }
         
         if (_onNewDataAvailable) {
@@ -230,5 +263,6 @@ private:
     std::vector<Tab> _tabs;
     std::vector<Filter> _filters;
     std::function<void()> _onNewDataAvailable;
+    std::map<size_t, std::string> _comments;
 };
 

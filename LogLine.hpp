@@ -11,6 +11,9 @@ struct LogLine {
     //! Actual contents.
     std::string text;
 
+    //! Comment associated with the line.
+    std::string comment;
+
     //! Unique id of line, growing monotonically
     size_t id{0};
 

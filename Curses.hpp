@@ -203,8 +203,9 @@ public:
 
     void printLine(int row, const LogLine& line) {
         if (_active) {
-            setColor(line.src, true);
-            mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
+            setColor(line.src, line.comment.empty());
+            std::string text = !line.comment.empty() ? line.comment : line.text;
+            mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.id, line.src, text.c_str());
         }
     }
 

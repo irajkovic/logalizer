@@ -19,6 +19,10 @@ bool initialize(Configuration* config, const Options::Options& options) {
         config->screen.addFilter(filter.name, filter.regex);
     }
 
+    for (const auto& external : options.externals) {
+        config->screen.addExternal(external.name, external.command);
+    }
+
     for (const auto& input : options.inputs) {
         config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->screen.getAppender(input)));
     }
