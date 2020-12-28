@@ -33,26 +33,36 @@ public:
 
         if (_active) {
             start_color();
-            init_pair(1, COLOR_WHITE, COLOR_BLACK);
-            init_pair(2, COLOR_YELLOW, COLOR_BLACK);
-            init_pair(3, COLOR_GREEN, COLOR_BLACK);
-            init_pair(4, COLOR_CYAN, COLOR_BLACK);
-            init_pair(5, COLOR_BLUE, COLOR_BLACK);
-            init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
-            init_pair(7, COLOR_RED, COLOR_BLACK);
-
-            init_pair(8,  COLOR_BLACK, COLOR_WHITE);
-            init_pair(9, COLOR_BLACK, COLOR_YELLOW);
-            init_pair(10, COLOR_BLACK, COLOR_GREEN);
-            init_pair(11, COLOR_BLACK, COLOR_CYAN);
-            init_pair(12, COLOR_BLACK, COLOR_BLUE);
-            init_pair(13, COLOR_BLACK, COLOR_MAGENTA);
-            init_pair(14, COLOR_BLACK, COLOR_RED);
+            initColors();
         }
 
         LOG("Curses: " << _active);
 
         return _active;
+    }
+
+    void initColors() {
+        // Positive colors
+        init_pair(1, COLOR_WHITE, COLOR_BLACK);
+        init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+        init_pair(3, COLOR_GREEN, COLOR_BLACK);
+        init_pair(4, COLOR_CYAN, COLOR_BLACK);
+        init_pair(5, COLOR_BLUE, COLOR_BLACK);
+        init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
+        init_pair(7, COLOR_RED, COLOR_BLACK);
+        // Negative colors
+        init_pair(8,  COLOR_BLACK, COLOR_WHITE);
+        init_pair(9, COLOR_BLACK, COLOR_YELLOW);
+        init_pair(10, COLOR_BLACK, COLOR_GREEN);
+        init_pair(11, COLOR_BLACK, COLOR_CYAN);
+        init_pair(12, COLOR_BLACK, COLOR_BLUE);
+        init_pair(13, COLOR_BLACK, COLOR_MAGENTA);
+        init_pair(14, COLOR_BLACK, COLOR_RED);
+    }
+
+    void setColor(uint8_t src, bool positive) {
+        int index = positive ? (src % 7 + 1) : (src % 7 + 8);
+        attron(COLOR_PAIR(index));
     }
 
     bool run() {
@@ -139,7 +149,7 @@ public:
                 return row + kVerPadding;
             }
 
-            tab->enabled ? attron(COLOR_PAIR(i+8)) : attron(COLOR_PAIR(i+1));
+            setColor(i, tab->enabled);
 
             auto tabTitle = getTabTitle(*tab, i);
 
@@ -193,7 +203,7 @@ public:
 
     void printLine(int row, const LogLine& line) {
         if (_active) {
-            attron(COLOR_PAIR(line.src + 1));
+            setColor(line.src, true);
             mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
         }
     }
