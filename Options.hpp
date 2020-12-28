@@ -77,10 +77,10 @@ bool parseOptions(Options* options, int argc, char* argv[]) {
                     parse(&success, &options->inputs, argv[i]);
                     break;
                 case Option::Filter:
-                    parse<Filter>(&success, &options->filters,  argv[i]);
+                    parse(&success, &options->filters,  argv[i]);
                     break;
                 case Option::External:
-                    parse<External>(&success, &options->externals, argv[i]);
+                    parse(&success, &options->externals, argv[i]);
                     break;
             }
 
