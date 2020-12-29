@@ -15,6 +15,7 @@ class Curses {
     Screen& _screen;
     std::atomic<bool> _drawing{false};
     bool _enableScrollDown{true};
+    bool _showComments{true};
 
 public:
 
@@ -100,10 +101,19 @@ public:
                     _active = false;
                     return true;
                     break;
+                case 'c':
+                case 'C':
+                    toggleComments();
+                    redraw();
+                    break;
             }
         }
 
         return true;
+    }
+
+    void toggleComments() {
+        _showComments = !_showComments;
     }
 
     void addTab(std::string name, int index) {
@@ -194,7 +204,13 @@ public:
                 break;
             }
 
+            setColor(line.src, true);
             printLine(i, line);
+
+            if (!line.comment.empty() && _showComments) {
+                printComment(++i, line);
+                i += std::count(line.comment.begin(), line.comment.end(), '\n') - 1;
+            }
         }
 
         ::refresh();
@@ -202,11 +218,11 @@ public:
     }
 
     void printLine(int row, const LogLine& line) {
-        if (_active) {
-            setColor(line.src, line.comment.empty());
-            std::string text = !line.comment.empty() ? line.comment : line.text;
-            mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.id, line.src, text.c_str());
-        }
+        mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
+    }
+
+    void printComment(int row, const LogLine& line) {
+        mvprintw(row + _menuHeight, 0, "        |> %s", line.comment.c_str()); 
     }
 
     ~Curses() {
