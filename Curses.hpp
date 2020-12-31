@@ -24,6 +24,9 @@ public:
             if (!_screenFilled) {
                 redraw();
             }
+            else {
+                drawMenu(true);
+            }
         });
     }
 
@@ -139,11 +142,7 @@ public:
         return stream.str();
     }
 
-    void drawStatusPanel(int startRow, int startCol) {
-       mvprintw(startRow, startCol, "%s", _screen.getDebugInfo().c_str());
-    }
-
-    int drawMenu(int maxcol) {
+    int drawMenu(bool standalone) {
 
         static const int kHorMargin = 2;
         static const int kVerMargin = 0;
@@ -152,6 +151,7 @@ public:
 
         int row = kVerMargin;
         int column = kHorMargin;
+
 
         for (int i = 0; i < _screen.getTabCnt(); i++) {
 
@@ -165,16 +165,18 @@ public:
 
             auto tabTitle = getTabTitle(*tab, i);
 
-            if (column + tabTitle.length() > maxcol - kRightPanelWidth) {
-                column = kHorMargin;
-                row += kVerPadding;
+            mvprintw(row, column, "%s", tabTitle.c_str());
+
+            if (standalone) {
+                clrtoeol();
             }
 
-            mvprintw(row, column, "%s", tabTitle.c_str());
             column += tabTitle.length() + kHorMargin;
         }
 
-        drawStatusPanel(kVerMargin, maxcol - kRightPanelWidth);
+        if (standalone) {
+            ::refresh();
+        }
 
         return row + kVerPadding;
     }
@@ -194,7 +196,7 @@ public:
         getmaxyx(stdscr, screenWidth, screenHeight);
        
         ::clear();
-        _menuHeight = drawMenu(screenHeight);
+        _menuHeight = drawMenu(false);
         _screen.prepareLines();
 
         _screenFilled = false;
