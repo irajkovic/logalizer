@@ -14,14 +14,16 @@ class Curses {
     std::vector<std::string> _tabs;
     Screen& _screen;
     std::atomic<bool> _drawing{false};
-    bool _enableScrollDown{true};
+    bool _screenFilled{false};
     bool _showComments{true};
 
 public:
 
     Curses(Screen& screen) : _screen(screen) {
         screen.registerOnNewDataAvailableListener([this](){
-            redraw();
+            if (!_screenFilled) {
+                redraw();
+            }
         });
     }
 
@@ -195,12 +197,13 @@ public:
         _menuHeight = drawMenu(screenHeight);
         _screen.prepareLines();
 
+        _screenFilled = false;
         for (size_t i = 0; i < screenHeight; i++) {
+
             auto line = _screen.nextLine();
 
             if (!line.isValid()) {
                 LOG("Line not valid: " << line.id);
-                _enableScrollDown = false;
                 break;
             }
 
@@ -210,6 +213,10 @@ public:
             if (!line.comment.empty() && _showComments) {
                 printComment(++i, line);
                 i += std::count(line.comment.begin(), line.comment.end(), '\n') - 1;
+            }
+
+            if (i >= screenHeight - 1) {
+                _screenFilled = true;
             }
         }
 
