@@ -151,6 +151,9 @@ public:
         int row = kVerMargin;
         int column = kHorMargin;
 
+        if (standalone && !renderingAvailable()) {
+            return 0;
+        }
 
         for (int i = 0; i < _screen.getTabCnt(); i++) {
 
@@ -175,35 +178,41 @@ public:
 
         if (standalone) {
             ::refresh();
+            _drawing = false;
         }
 
         return row + kVerPadding;
     }
 
-    void drawLines(int menuHeight, int screenHeight) {
+    bool drawLines(int startRow, int screenHeight) {
 
-        _screenFilled = false;
-        for (size_t i = 0; i < screenHeight; i++) {
+        _screen.prepareLines();
+        int row = startRow;
+        while (row < screenHeight) {
 
             auto line = _screen.nextLine();
 
             if (!line.isValid()) {
                 LOG("Line not valid: " << line.id);
-                break;
+                return false;
             }
 
             setColor(line.src, true);
-            printLine(i + menuHeight, line);
+            row += printLine(row, line);
 
             if (!line.comment.empty() && _showComments) {
-                printComment(++i, line);
-                i += std::count(line.comment.begin(), line.comment.end(), '\n') - 1;
-            }
-
-            if (i >= screenHeight - 1) {
-                _screenFilled = true;
+                row += printComment(row, line);
             }
         }
+
+        LOG("Drawn " << row << "/" << screenHeight);
+
+        return true;
+    }
+
+    bool renderingAvailable() {
+        bool expected = false;
+        return _drawing.compare_exchange_weak(expected, true);
     }
     
     void redraw() {
@@ -212,29 +221,29 @@ public:
             return;
         }
 
-        bool expected = false;
-        if (!_drawing.compare_exchange_weak(expected, true)) {
+        if (!renderingAvailable()) {
             return;
         }
 
         int screenWidth, screenHeight;
-        getmaxyx(stdscr, screenWidth, screenHeight);
+        getmaxyx(stdscr, screenHeight, screenWidth);
        
         ::clear();
         auto menuHeight = drawMenu(false);
-        _screen.prepareLines();
-        drawLines(menuHeight, screenHeight);
+        _screenFilled = drawLines(menuHeight, screenHeight);
 
         ::refresh();
         _drawing = false;
     }
 
-    void printLine(int row, const LogLine& line) {
+    int printLine(int row, const LogLine& line) {
         mvprintw(row, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
+        return getcury(stdscr) - row + 1;
     }
 
-    void printComment(int row, const LogLine& line) {
-        mvprintw(row, 0, "        |> %s", line.comment.c_str()); 
+    int printComment(int row, const LogLine& line) {
+        mvprintw(row, 0, "        |> %s", line.comment.c_str());
+        return getcury(stdscr) - row + 1;
     }
 
     ~Curses() {
