@@ -9,7 +9,6 @@
 
 class Curses {
 
-    int _menuHeight = 0;
     std::atomic<bool> _active{false};
     std::vector<std::string> _tabs;
     Screen& _screen;
@@ -180,6 +179,32 @@ public:
 
         return row + kVerPadding;
     }
+
+    void drawLines(int menuHeight, int screenHeight) {
+
+        _screenFilled = false;
+        for (size_t i = 0; i < screenHeight; i++) {
+
+            auto line = _screen.nextLine();
+
+            if (!line.isValid()) {
+                LOG("Line not valid: " << line.id);
+                break;
+            }
+
+            setColor(line.src, true);
+            printLine(i + menuHeight, line);
+
+            if (!line.comment.empty() && _showComments) {
+                printComment(++i, line);
+                i += std::count(line.comment.begin(), line.comment.end(), '\n') - 1;
+            }
+
+            if (i >= screenHeight - 1) {
+                _screenFilled = true;
+            }
+        }
+    }
     
     void redraw() {
 
@@ -196,42 +221,20 @@ public:
         getmaxyx(stdscr, screenWidth, screenHeight);
        
         ::clear();
-        _menuHeight = drawMenu(false);
+        auto menuHeight = drawMenu(false);
         _screen.prepareLines();
-
-        _screenFilled = false;
-        for (size_t i = 0; i < screenHeight; i++) {
-
-            auto line = _screen.nextLine();
-
-            if (!line.isValid()) {
-                LOG("Line not valid: " << line.id);
-                break;
-            }
-
-            setColor(line.src, true);
-            printLine(i, line);
-
-            if (!line.comment.empty() && _showComments) {
-                printComment(++i, line);
-                i += std::count(line.comment.begin(), line.comment.end(), '\n') - 1;
-            }
-
-            if (i >= screenHeight - 1) {
-                _screenFilled = true;
-            }
-        }
+        drawLines(menuHeight, screenHeight);
 
         ::refresh();
         _drawing = false;
     }
 
     void printLine(int row, const LogLine& line) {
-        mvprintw(row + _menuHeight, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
+        mvprintw(row, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
     }
 
     void printComment(int row, const LogLine& line) {
-        mvprintw(row + _menuHeight, 0, "        |> %s", line.comment.c_str()); 
+        mvprintw(row, 0, "        |> %s", line.comment.c_str()); 
     }
 
     ~Curses() {
