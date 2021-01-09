@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
     Curses curses(configuration.screen);
 
     if (!Options::parseOptions(&options, argc, argv)) {
+        std::cout << Options::getHelp() << std::endl;
         return EXIT_FAILURE;
     }
 
