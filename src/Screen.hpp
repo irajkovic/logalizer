@@ -20,8 +20,11 @@ struct Tab {
     std::string name;
     bool enabled;
     size_t rowsCnt{0};
-    size_t minLineId{kUndefined};
-    size_t maxLineId{kUndefined};
+    bool valid{false};
+
+    operator bool() {
+        return valid;
+    }
 };
 
 struct Filter {
@@ -37,6 +40,14 @@ class Screen {
         std::chrono::time_point<std::chrono::steady_clock> time;
         std::string text;
         uint8_t src;
+    };
+
+    struct TabInternal {
+        std::string name;
+        bool enabled;
+        size_t rowsCnt{0};
+        size_t minLineId{kUndefined};
+        size_t maxLineId{kUndefined};
     };
 
 public:
@@ -86,12 +97,13 @@ public:
         _tabs[src].enabled = !_tabs[src].enabled;
     }
 
-    Tab* getTab(uint8_t src) {
+    Tab getTab(uint8_t src) {
         std::lock_guard<std::mutex> g(_mtx);
         if (src < _tabs.size()) {
-            return &_tabs[src];
+            TabInternal& tab = _tabs[src];
+            return Tab{tab.name, tab.enabled, tab.rowsCnt, true};
         }
-        return nullptr;
+        return {};
     }
 
     uint8_t getTabCnt() {
@@ -108,7 +120,7 @@ public:
         LOG("Filter " << name << " (" << _src << ")");
         std::lock_guard<std::mutex> g(_mtx);
         _filters.emplace_back(Filter{_src++, name, std::regex{regex}});
-        _tabs.emplace_back(Tab{name, true, 0, kUndefined});
+        _tabs.emplace_back(TabInternal{name, true, 0, kUndefined});
     }
 
     bool addExternal(const std::string& name, const std::string& command) {
@@ -128,7 +140,7 @@ public:
         std::lock_guard<std::mutex> g(_mtx);
         auto src = _src++;
         LOG("Appender " << name << " (" << src << ")");
-        _tabs.emplace_back(Tab{name, true});
+        _tabs.emplace_back(TabInternal{name, true});
 
         return [this, src] (std::string line) {
             addLine(line, src);
@@ -260,7 +272,7 @@ private:
     size_t      _nextLine = 0;
     bool        _hasNextLine = false;
     std::vector<LogLineInternal> _lines;
-    std::vector<Tab> _tabs;
+    std::vector<TabInternal> _tabs;
     std::vector<Filter> _filters;
     std::function<void()> _onNewDataAvailable;
     std::map<size_t, std::string> _comments;

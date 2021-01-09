@@ -159,13 +159,13 @@ public:
 
             auto tab = _screen.getTab(i);
 
-            if (tab == nullptr) {
+            if (!tab) {
                 return row + kVerPadding;
             }
 
-            setColor(i, !tab->enabled);
+            setColor(i, !tab.enabled);
 
-            auto tabTitle = getTabTitle(*tab, i);
+            auto tabTitle = getTabTitle(tab, i);
 
             mvprintw(row, column, "%s", tabTitle.c_str());
 
