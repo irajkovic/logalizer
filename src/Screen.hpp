@@ -110,9 +110,9 @@ public:
 
     LogLine nextLine() {
 
-        // TODO :: Use locking algorithm
-        std::lock_guard<std::mutex> g1(_tabMtx);
-        std::lock_guard<std::mutex> g2(_mtx);
+        std::lock(_tabMtx, _mtx);
+        std::lock_guard<std::mutex> g1(_tabMtx, std::adopt_lock);
+        std::lock_guard<std::mutex> g2(_mtx, std::adopt_lock);
 
         if (!_hasNextLine) {
             return {};
