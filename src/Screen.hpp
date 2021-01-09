@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <chrono>
 #include <functional>
 #include <vector>
@@ -67,17 +68,19 @@ public:
     void prepareLines() {
 
         std::lock_guard<std::mutex> g(_mtx);
-        _hasNextLine = true;
         _nextLine = clampRow(_row);
+        _hasNextLine = _nextLine != kUndefined;
     }
 
     LogLine nextLine() {
 
         std::lock_guard<std::mutex> g(_mtx);
 
-        if (!_hasNextLine || _nextLine >= _lines.size()) {
+        if (!_hasNextLine) {
             return {};
         }
+
+        assert(_nextLine < _lines.size());
 
         const auto& internal = _lines[_nextLine];
         LogLine line{internal.time, internal.text, "", _nextLine, internal.src, true};
@@ -238,22 +241,26 @@ private:
 
     size_t getMinLineWithFilters() {
         size_t minLineId = kUndefined;
+        bool found = false;
         for (const auto& tab : _tabs) {
             if (tab.enabled && (tab.minLineId < minLineId)) {
                 minLineId = tab.minLineId;
+                found = true;
             }
         }
-        return minLineId;    
+        return found ? minLineId : kUndefined;    
     }
 
     size_t getMaxLineWithFilters() {
         size_t maxLineId = 0u;
+        bool found = false;
         for (const auto& tab : _tabs) {
             if (tab.enabled && (tab.maxLineId > maxLineId)) {
                 maxLineId = tab.maxLineId;
+                found = true;
             }
         }
-        return maxLineId;    
+        return found ? maxLineId : kUndefined;    
     }
 
     size_t getLinesCntWithFilters() {
