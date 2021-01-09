@@ -65,33 +65,46 @@ public:
         return clamp(wanted, getMinLineWithFilters(), getMaxLineWithFilters());
     }
 
-    void scrollUp() {
+    bool scrollUp() {
         std::lock_guard<std::mutex> g(_mtx);
-        _row = clampRow(reverseFiltered(_row));
+        return reverseFiltered(&_row);
     }
 
-    void scrollDown() {
+    bool scrollDown() {
         std::lock_guard<std::mutex> g(_mtx);
-        _row = clampRow(fastForwardFiltered(_row));
+        return fastForwardFiltered(&_row);
     }
 
-    size_t reverseFiltered(const size_t from) {
-        size_t i = from - 1u;
+    bool reverseFiltered(size_t *from) {
+        size_t i = *from - 1u;
         while ((i < _lines.size()) && !_tabs[_lines[i].src].enabled) {
             i--;
         }
-        return (i < _lines.size()) ? i : from;
+
+        if (i < _lines.size()) {
+            *from = i;
+            return true;
+        }
+
+        return false;
     }
 
-    size_t fastForwardFiltered(const size_t from) {
-        size_t i = from + 1u;
+    size_t fastForwardFiltered(size_t *from) {
+        size_t i = *from + 1u;
         while ((i < _lines.size()) && !_tabs[_lines[i].src].enabled) {
             i++;
         }
-        return (i < _lines.size()) ? i : kUndefined;
+
+        if (i < _lines.size()) {
+            *from = i;
+            return true;
+        }
+
+        return false;
     }
 
     void prepareLines() {
+        _hasNextLine = true;
         _nextLine = clampRow(_row);
     }
 
@@ -101,7 +114,7 @@ public:
         std::lock_guard<std::mutex> g1(_tabMtx);
         std::lock_guard<std::mutex> g2(_mtx);
 
-        if (_nextLine == kUndefined) {
+        if (!_hasNextLine) {
             return {};
         }
 
@@ -112,8 +125,9 @@ public:
         if (comment != std::end(_comments)) {
             line.comment = comment->second;
         }
-
-        _nextLine = fastForwardFiltered(_nextLine);
+    
+        _hasNextLine = fastForwardFiltered(&_nextLine);
+        
         return line;
     }
 
@@ -259,6 +273,7 @@ private:
     int         _src = 0;
     size_t      _row = 0;
     size_t      _nextLine = 0;
+    bool        _hasNextLine = false;
     std::vector<LogLineInternal> _lines;
     std::vector<Tab> _tabs;
     std::vector<Filter> _filters;
