@@ -13,20 +13,34 @@ class Curses {
     std::vector<std::string> _tabs;
     Screen& _screen;
     std::atomic<bool> _drawing{false};
-    bool _screenFilled{false};
+    std::atomic<bool> _screenFilled{false};
     bool _showComments{true};
+
+    WINDOW* _winMenu{nullptr};
+    WINDOW* _winLines{nullptr};
+
+    static const int kMenuHeight = 3;
+    static const int kMenuWidth = 0; // Full width
 
 public:
 
-    Curses(Screen& screen) : _screen(screen) {
+    Curses(Screen& screen)
+        :_screen(screen) {
+
         screen.registerOnNewDataAvailableListener([this](){
             if (!_screenFilled) {
                 redraw();
             }
             else {
-                drawMenu(true);
+                drawMenu();
             }
         });
+    }
+
+    ~Curses() {
+        ::delwin(_winMenu);
+        ::delwin(_winLines);
+        endwin();
     }
 
     bool activate() {
@@ -41,9 +55,12 @@ public:
             initColors();
         }
 
+        _winMenu = ::newwin(kMenuHeight, kMenuWidth, 0, 0);
+        _winLines = ::newwin(0, 0, kMenuHeight, 0);
+
         LOG("Curses: " << _active);
 
-        return _active;
+        return _active && _winMenu && _winLines;
     }
 
     void initColors() {
@@ -65,9 +82,9 @@ public:
         init_pair(14, COLOR_BLACK, COLOR_RED);
     }
 
-    void setColor(uint8_t src, bool positive) {
+    void setColor(WINDOW* window, uint8_t src, bool positive) {
         int index = positive ? (src % 7 + 1) : (src % 7 + 8);
-        attron(COLOR_PAIR(index));
+        ::wattron(window, COLOR_PAIR(index));
     }
 
     bool run() {
@@ -77,7 +94,10 @@ public:
         }
 
         while (true) {
+
+            redraw();
             int ch = getch();
+
             switch (ch) {
                 case '0':
                 case '1':
@@ -90,15 +110,12 @@ public:
                 case '8':
                 case '9':
                     _screen.toggleTab(ch - '0');
-                    redraw();
                     break;
                 case KEY_UP:
                     _screen.scrollUp();
-                    redraw();
                     break;
                 case KEY_DOWN:
                     _screen.scrollDown();
-                    redraw();
                     break;
                 case 'q':
                 case 'Q':
@@ -108,7 +125,6 @@ public:
                 case 'c':
                 case 'C':
                     toggleComments();
-                    redraw();
                     break;
             }
         }
@@ -141,7 +157,7 @@ public:
         return stream.str();
     }
 
-    int drawMenu(bool standalone) {
+    int drawMenu() {
 
         static const int kHorMargin = 2;
         static const int kVerMargin = 0;
@@ -151,9 +167,7 @@ public:
         int row = kVerMargin;
         int column = kHorMargin;
 
-        if (standalone && !renderingAvailable()) {
-            return 0;
-        }
+        ::wclear(_winMenu);
 
         for (int i = 0; i < _screen.getTabCnt(); i++) {
 
@@ -163,31 +177,23 @@ public:
                 return row + kVerPadding;
             }
 
-            setColor(i, !tab.enabled);
+            setColor(_winMenu, i, !tab.enabled);
 
             auto tabTitle = getTabTitle(tab, i);
 
-            mvprintw(row, column, "%s", tabTitle.c_str());
-
-            if (standalone) {
-                clrtoeol();
-            }
+            ::mvwprintw(_winMenu, row, column, "%s", tabTitle.c_str());
 
             column += tabTitle.length() + kHorMargin;
         }
 
-        if (standalone) {
-            ::refresh();
-            _drawing = false;
-        }
-
+        wrefresh(_winMenu);
         return row + kVerPadding;
     }
 
-    bool drawLines(int startRow, int screenHeight) {
+    bool drawLines(int screenHeight) {
 
         _screen.prepareLines();
-        int row = startRow;
+        int row = 0;
         while (row < screenHeight) {
 
             auto line = _screen.nextLine();
@@ -197,7 +203,7 @@ public:
                 return false;
             }
 
-            setColor(line.src, true);
+            setColor(_winLines, line.src, true);
             row += printLine(row, line);
 
             if (!line.comment.empty() && _showComments) {
@@ -226,28 +232,26 @@ public:
         }
 
         int screenWidth, screenHeight;
-        getmaxyx(stdscr, screenHeight, screenWidth);
-       
-        ::clear();
-        auto menuHeight = drawMenu(false);
-        _screenFilled = drawLines(menuHeight, screenHeight);
+        getmaxyx(_winLines, screenHeight, screenWidth);
 
-        ::refresh();
+        LOG("Dimensions: " << screenWidth << "x" << screenHeight);
+       
+        ::wclear(_winLines);
+        drawMenu();
+        _screenFilled = drawLines(screenHeight);
+
+        ::wrefresh(_winLines);
         _drawing = false;
     }
 
     int printLine(int row, const LogLine& line) {
-        mvprintw(row, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
-        return getcury(stdscr) - row + 1;
+        ::mvwprintw(_winLines, row, 0, "%6d [%d] %s", line.id, line.src, line.text.c_str());
+        return getcury(_winLines) - row + 1;
     }
 
     int printComment(int row, const LogLine& line) {
-        mvprintw(row, 0, "        |> %s", line.comment.c_str());
-        return getcury(stdscr) - row + 1;
-    }
-
-    ~Curses() {
-        endwin();
+        ::mvwprintw(_winLines, row, 0, "        |> %s", line.comment.c_str());
+        return getcury(_winLines) - row + 1;
     }
 };
 
