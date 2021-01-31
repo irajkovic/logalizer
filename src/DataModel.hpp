@@ -8,6 +8,7 @@
 #include <string>
 #include <limits>
 #include <map>
+#include <mutex>
 
 #include "Log.hpp"
 #include "LogLine.hpp"
@@ -135,6 +136,10 @@ public:
     }
 
     void addLine(const std::string& text, uint8_t src) {
+
+        if (src >= _tabs.size()) {
+            return;
+        }
 
         LogLineInternal line{std::chrono::steady_clock::now(), text, src};
         const std::string *command = nullptr;
