@@ -42,3 +42,33 @@ To build the program, run the following:
 From the build folder, run the program with:
 
     ./log-analyzer <options>
+
+For more information, use the built in help:
+
+	./log-analyzer -h
+	
+	Logalizer
+	
+	Log Analysis tool.
+	
+	Options:
+	  -i <file>
+	     Input file to be read.
+	  -f <name:regex>
+	     Defines a regular expression with the given name.
+	     Matching lines will be marked with a color and
+	     their visibility can be toggled.
+	  -e <name:command>
+	     Defines a command to be executed whenever a line
+	     with matches a filter with the same name.
+	     The whole line will be passed to the given command
+	     as its first argument and anything outputed to the
+	     standard output by the command will be recorded and
+	     displayed as a comment.
+	  -h Prints this help.
+	
+	Example:
+	
+	  log-analyzer -i  <(journalctl) -f 'KERNEL:.*kernel.*' 'SYSTEMD:.*systemd.*' 2> err.txt 
+
+	     Reads the contents of journalctl and marks all lines containing "kernel" and "systemd". 
