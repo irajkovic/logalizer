@@ -1,12 +1,12 @@
 #include "Curses.hpp"
-#include "Screen.hpp"
+#include "DataModel.hpp"
 #include "LogReader.hpp"
 #include "Options.hpp"
 
 #include <string>
 
 struct Configuration {
-    Screen screen;
+    DataModel data;
     std::vector<std::unique_ptr<LogReader>> readers;
 };
 
@@ -16,15 +16,15 @@ bool initialize(Configuration* config, const Options::Options& options) {
 
     // Filters must be available before the input is read
     for (const auto& filter : options.filters) {
-        config->screen.addFilter(filter.name, filter.regex);
+        config->data.addFilter(filter.name, filter.regex);
     }
 
     for (const auto& external : options.externals) {
-        config->screen.addExternal(external.name, external.command);
+        config->data.addExternal(external.name, external.command);
     }
 
     for (const auto& input : options.inputs) {
-        config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->screen.getAppender(input)));
+        config->readers.emplace_back(std::make_unique<LogReader>(input, noop, config->data.getAppender(input)));
     }
 
     return true;
@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
 
     Options::Options options;
     Configuration configuration;
-    Curses curses(configuration.screen);
+    Curses curses(configuration.data);
 
     if (!Options::parseOptions(&options, argc, argv)) {
         std::cout << Options::getHelp() << std::endl;

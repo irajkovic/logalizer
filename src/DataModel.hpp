@@ -13,29 +13,13 @@
 #include "LogLine.hpp"
 #include "Exec.hpp"
 
+#include "IDataModel.hpp"
+
 namespace {
     const size_t kUndefined = std::numeric_limits<size_t>::max();
 };
 
-struct Tab {
-    std::string name;
-    bool enabled;
-    size_t rowsCnt{0};
-    bool valid{false};
-
-    operator bool() {
-        return valid;
-    }
-};
-
-struct Filter {
-    int src;
-    std::string name;
-    std::regex regex;
-    std::string command;
-};
-
-class Screen {
+class DataModel : public IDataModel {
 
     struct LogLineInternal {
         std::chrono::time_point<std::chrono::steady_clock> time;

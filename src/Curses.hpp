@@ -4,14 +4,14 @@
 #include <curses.h>
 #include <mutex>
 
-#include "Screen.hpp"
+#include "IDataModel.hpp"
 #include "Log.hpp"
 
 class Curses {
 
     std::atomic<bool> _active{false};
     std::vector<std::string> _tabs;
-    Screen& _screen;
+    IDataModel& _data;
     std::atomic<bool> _drawing{false};
     std::atomic<bool> _screenFilled{false};
     bool _showComments{true};
@@ -24,10 +24,10 @@ class Curses {
 
 public:
 
-    Curses(Screen& screen)
-        :_screen(screen) {
+    Curses(IDataModel& data)
+        :_data(data) {
 
-        screen.registerOnNewDataAvailableListener([this](){
+        _data.registerOnNewDataAvailableListener([this](){
             if (!_screenFilled) {
                 redraw();
             }
@@ -109,13 +109,13 @@ public:
                 case '7':
                 case '8':
                 case '9':
-                    _screen.toggleTab(ch - '0');
+                    _data.toggleTab(ch - '0');
                     break;
                 case KEY_UP:
-                    _screen.scrollUp();
+                    _data.scrollUp();
                     break;
                 case KEY_DOWN:
-                    _screen.scrollDown();
+                    _data.scrollDown();
                     break;
                 case 'q':
                 case 'Q':
@@ -169,9 +169,9 @@ public:
 
         ::wclear(_winMenu);
 
-        for (int i = 0; i < _screen.getTabCnt(); i++) {
+        for (int i = 0; i < _data.getTabCnt(); i++) {
 
-            auto tab = _screen.getTab(i);
+            auto tab = _data.getTab(i);
 
             if (!tab) {
                 return row + kVerPadding;
@@ -192,11 +192,11 @@ public:
 
     bool drawLines(int screenHeight) {
 
-        _screen.prepareLines();
+        _data.prepareLines();
         int row = 0;
         while (row < screenHeight) {
 
-            auto line = _screen.nextLine();
+            auto line = _data.nextLine();
 
             if (!line.isValid()) {
                 LOG("Line not valid: " << line.id);
