@@ -103,12 +103,19 @@ public:
         _onNewDataAvailable = listener;
     }
 
-    void addFilter(const std::string& name, const std::string& regex) {
+    /**
+     * Adds a new filter.
+     *
+     * @return The ID of tab corresponding to the filter.
+     */
+    uint8_t addFilter(const std::string& name, const std::string& regex) {
 
         LOG("Filter " << name << " (" << _src << ")");
         std::lock_guard<std::mutex> g(_mtx);
+        uint8_t tabId = _tabs.size();
         _filters.emplace_back(Filter{_src++, name, std::regex{regex}});
         _tabs.emplace_back(TabInternal{name, true, 0, kUndefined});
+        return tabId;
     }
 
     bool addExternal(const std::string& name, const std::string& command) {

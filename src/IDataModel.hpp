@@ -52,7 +52,7 @@ public:
     virtual void registerOnNewDataAvailableListener(
         std::function<void()> listener) = 0;
 
-    virtual void addFilter(
+    virtual uint8_t addFilter(
         const std::string& name, const std::string& regex) = 0;
 
     virtual bool addExternal(
