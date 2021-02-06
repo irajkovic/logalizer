@@ -72,3 +72,14 @@ For more information, use the built in help:
 	  log-analyzer -i  <(journalctl) -f 'KERNEL:.*kernel.*' 'SYSTEMD:.*systemd.*' 2> err.txt 
 
 	     Reads the contents of journalctl and marks all lines containing "kernel" and "systemd". 
+
+## Unit tests and code coverage
+
+To compile the unit tests, set the `ENABLE_TESTS` CMake flag. To enable the code coverage, set the
+`ENABLE_COVERAGE` flag:
+    
+    cmake -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON ..
+    make unit-tests
+    make coverage
+
+The html report for the coverage can be found in the `build/coverage-results/` folder.
