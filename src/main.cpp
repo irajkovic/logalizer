@@ -6,7 +6,7 @@
 #include <string>
 
 struct Configuration {
-    DataModel data;
+    DataModel data = DataModel{std::make_shared<Exec>()};
     std::vector<std::unique_ptr<LogReader>> readers;
 };
 

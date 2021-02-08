@@ -3,7 +3,7 @@ message("Bulding tests..")
 enable_testing()
 
 find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
+include_directories(${GTEST_INCLUDE_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/src)
 
 # Add test cpp file
 add_executable(unit_tests

@@ -12,7 +12,7 @@
 
 #include "Log.hpp"
 #include "LogLine.hpp"
-#include "Exec.hpp"
+#include "IExec.hpp"
 
 #include "IDataModel.hpp"
 
@@ -37,6 +37,8 @@ class DataModel : public IDataModel {
     };
 
 public:
+
+    DataModel(std::shared_ptr<IExec> exec = nullptr) : _exec{exec} {}
 
     bool scrollUp() {
 
@@ -179,8 +181,7 @@ public:
 
             // Run command
             if (command) {
-                _comments[lineId] = exec(*command, text);
-                LOG("Added comment (" << lineId << ") "  << _comments[lineId]);
+                addComment(*command, text, lineId);
             }
         }
         
@@ -190,6 +191,23 @@ public:
     }
 
 private:
+
+    void addComment(const std::string& command,
+                    const std::string& text,
+                    size_t lineId) {
+
+        if (_exec == nullptr) {
+            return;
+        }
+        auto comment =_exec->exec(command, text);
+        if (!comment.empty()) {
+            _comments[lineId] = comment;
+            LOG("Added comment (" << lineId << ") "  << _comments[lineId]);
+        }
+        else {
+            LOG("Failed to add comment for line " << lineId);
+        }
+    }
 
     size_t clamp(size_t wanted, size_t min, size_t max) {
         if (wanted < min) {
@@ -279,5 +297,6 @@ private:
     std::vector<Filter> _filters;
     std::function<void()> _onNewDataAvailable;
     std::map<size_t, std::string> _comments;
+    std::shared_ptr<IExec> _exec;
 };
 

@@ -8,8 +8,12 @@
 #include <string>
 
 #include "Log.hpp"
+#include "IExec.hpp"
 
-std::string exec(const std::string& cmd, const std::string& line) {
+
+struct Exec : public IExec {
+
+std::string exec(const std::string& cmd, const std::string& line) override {
 
     std::string fullCmd = cmd + " '" + line + "'"; 
     std::array<char, 128> buffer;
@@ -26,3 +30,5 @@ std::string exec(const std::string& cmd, const std::string& line) {
     }
     return result;
 }
+
+};

@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 
 #include "src/DataModel.hpp"
+#include "mocks/ExecMock.hpp"
 
 TEST(DataModel, testEmptyModel)
 {
@@ -166,6 +167,35 @@ TEST(DataModel, testFilters)
     EXPECT_EQ(data.nextLine().isValid(), false);
 }
 
+TEST(DataModel, testScrollWithFilters)
+{
+    DataModel data;
+    auto append = data.getAppender("one");
+    auto tabApples = data.addFilter("filter-apple", ".*apple.*");
+    auto tabOranges = data.addFilter("filter-orange", ".*orange.*");
+
+    append("line 1 apple");
+    append("line 2 orange");
+    append("line 3 orange");
+    append("line 4 apple");
+
+    // Hide oranges
+    data.toggleTab(tabOranges);
+
+    EXPECT_EQ(data.scrollDown(), true);
+    EXPECT_EQ(data.scrollDown(), false);
+    data.prepareLines();
+    EXPECT_EQ(data.nextLine().text, "line 4 apple");
+    EXPECT_EQ(data.nextLine().isValid(), false);
+
+    EXPECT_EQ(data.scrollUp(), true);
+    EXPECT_EQ(data.scrollUp(), false);
+    data.prepareLines();
+    EXPECT_EQ(data.nextLine().text, "line 1 apple");
+    EXPECT_EQ(data.nextLine().text, "line 4 apple");
+    EXPECT_EQ(data.nextLine().isValid(), false);
+}
+
 TEST(DataModel, testAddExternalNoFilters)
 {
     DataModel data;
@@ -181,7 +211,45 @@ TEST(DataModel, testAddExternalNoMatchingFilter)
 
 TEST(DataModel, testAddExternalWithMatchingFilter)
 {
+    auto exec = std::make_shared<ExecMock>();
+    int callCnt = 0;
+    exec->execHandler = [&callCnt] (auto cmd, auto line) { callCnt++; return "dummy";};
+    DataModel data(exec);
+
+    // Setup appender, filter and external command handler
+    auto append = data.getAppender("one");
+    data.addFilter("hello", ".*hello.*");
+    EXPECT_EQ(data.addExternal("hello", "some-command"), true);
+
+    // When non matching line is added, exec handler is not called
+    append("Hello world");
+    EXPECT_EQ(callCnt, 0);
+
+    // When matching line is added, execHandler is called
+    append("hello world");
+    EXPECT_EQ(callCnt, 1);
+
+    // Comment for the second line will be set to the value returned by the execHandler
+    data.prepareLines();
+    EXPECT_EQ(data.nextLine().comment.empty(), true);
+    EXPECT_EQ(data.nextLine().comment, "dummy");
+}
+
+
+TEST(DataModel, testAddExternalWithMatchingFilterNoExec)
+{
     DataModel data;
-    data.addFilter("ext", "");
-    EXPECT_EQ(data.addExternal("ext", "cat"), true);
+
+    // Setup appender, filter and external command handler
+    auto append = data.getAppender("one");
+    data.addFilter("hello", ".*hello.*");
+    EXPECT_EQ(data.addExternal("hello", "some-command"), true);
+
+    append("Hello world");
+    append("hello world");
+
+    // Comment for the second line will be set to the value returned by the execHandler
+    data.prepareLines();
+    EXPECT_EQ(data.nextLine().comment.empty(), true);
+    EXPECT_EQ(data.nextLine().comment.empty(), true);
 }
